@@ -9,7 +9,7 @@
   },
   "features": {
     "movement": {
-      "enabled": true,
+      "enabled": false,
       "range": 10,
       "delay": 5000
     },
