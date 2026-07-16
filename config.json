@@ -32,7 +32,7 @@
       "maxDelay": 120000
     },
     "autoNickChange": {
-      "enabled": false,
+      "enabled": true,
       "prefix": "Player",
       "maxAttempts": 3
     }
