@@ -1,0 +1,40 @@
+{
+  "server": {
+    "ip": "FriendSmpServer.aternos.me",
+    "port": 33882,
+    "version": "1.21.8"
+  },
+  "bot": {
+    "name": "MyBot2026"
+  },
+  "features": {
+    "movement": {
+      "enabled": true,
+      "range": 10,
+      "delay": 5000
+    },
+    "chat": {
+      "enabled": true,
+      "messages": ["Hello!", "I'm a friendly bot", "Minecraft is fun!"],
+      "delay": 60000
+    },
+    "attackMobs": {
+      "enabled": true,
+      "range": 5
+    },
+    "sleep": {
+      "enabled": true,
+      "timeout": 30000
+    },
+    "autoReconnect": {
+      "enabled": true,
+      "minDelay": 5000,
+      "maxDelay": 120000
+    },
+    "autoNickChange": {
+      "enabled": false,
+      "prefix": "Player",
+      "maxAttempts": 3
+    }
+  }
+}
