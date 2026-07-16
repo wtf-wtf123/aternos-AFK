@@ -9,12 +9,12 @@
   },
   "features": {
     "movement": {
-      "enabled": false,
+      "enabled": true,
       "range": 10,
       "delay": 5000
     },
     "chat": {
-      "enabled": true,
+      "enabled": false,
       "messages": ["Hello!", "I'm a friendly bot", "Minecraft is fun!"],
       "delay": 60000
     },
