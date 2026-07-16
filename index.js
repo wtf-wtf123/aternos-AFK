@@ -4,6 +4,8 @@ const config = require('./config.json');
 let botName = config.bot.name;
 let reconnectAttempts = 0;
 let autoNickAttempts = 0;
+let failAttempts = 0; // Счётчик неудачных попыток подключения
+const MAX_FAIL_ATTEMPTS = 3; // После скольких неудач менять ник
 
 function createBot() {
   const bot = mineflayer.createBot({
@@ -13,14 +15,14 @@ function createBot() {
     version: config.server.version
   });
 
-  // --- Обработка входа ---
+  // --- Успешный вход ---
   bot.on('login', () => {
     console.log(`[${new Date().toLocaleTimeString()}] Бот ${botName} зашёл на сервер!`);
     reconnectAttempts = 0;
     autoNickAttempts = 0;
+    failAttempts = 0; // Сбрасываем счётчик неудач
   });
 
-  // --- Задержка после спавна ---
   bot.on('spawn', () => {
     console.log(`[${new Date().toLocaleTimeString()}] Бот появился в мире!`);
     startTasks(bot);
@@ -71,7 +73,6 @@ function createBot() {
     }, config.features.sleep.timeout);
   }
 
-  // --- Запуск всех функций ---
   function startTasks(bot) {
     startMovement(bot);
     startChat(bot);
@@ -79,36 +80,64 @@ function createBot() {
     startSleep(bot);
   }
 
-  // --- Авто-переподключение ---
-  bot.on('end', (reason) => {
-    console.log(`[${new Date().toLocaleTimeString()}] Отключён: ${reason}`);
-    if (!config.features.autoReconnect.enabled) return;
-
-    const minDelay = config.features.autoReconnect.minDelay || 5000;
-    const maxDelay = config.features.autoReconnect.maxDelay || 120000;
-    let delay = Math.min(minDelay * Math.pow(2, reconnectAttempts), maxDelay);
-    
-    if (reason && reason.includes('banned')) {
-      if (config.features.autoNickChange.enabled && autoNickAttempts < config.features.autoNickChange.maxAttempts) {
-        botName = config.features.autoNickChange.prefix + Date.now().toString().slice(-4);
-        autoNickAttempts++;
-        console.log(`[${new Date().toLocaleTimeString()}] Сменил ник на ${botName}`);
-        delay = 5000;
-      } else {
-        console.log(`[${new Date().toLocaleTimeString()}] Не удалось сменить ник. Бот остановлен.`);
-        return;
-      }
-    }
-
-    reconnectAttempts++;
-    console.log(`[${new Date().toLocaleTimeString()}] Переподключение через ${delay/1000}с (попытка ${reconnectAttempts})`);
-    setTimeout(createBot, delay);
+  // --- ОБРАБОТКА ОТКЛЮЧЕНИЯ ---
+  bot.on('kicked', (reason) => {
+    console.log(`[${new Date().toLocaleTimeString()}] Кикнут с сервера. Причина: ${reason}`);
+    handleDisconnect('kicked', reason);
   });
 
-  // --- Обработка ошибок ---
+  bot.on('end', (reason) => {
+    console.log(`[${new Date().toLocaleTimeString()}] Отключён. Причина: ${reason}`);
+    handleDisconnect('end', reason);
+  });
+
+  // --- ОШИБКА ПОДКЛЮЧЕНИЯ ---
   bot.on('error', (err) => {
     console.log(`[${new Date().toLocaleTimeString()}] Ошибка: ${err.message}`);
+    // Если ошибка связана с подключением — считаем как неудачную попытку
+    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
+      failAttempts++;
+      console.log(`[${new Date().toLocaleTimeString()}] Неудачная попытка подключения (${failAttempts}/${MAX_FAIL_ATTEMPTS})`);
+      if (failAttempts >= MAX_FAIL_ATTEMPTS && config.features.autoNickChange.enabled) {
+        changeNickAndReconnect();
+      }
+    }
   });
+
+  // --- ФУНКЦИЯ СМЕНЫ НИКА ---
+  function changeNickAndReconnect() {
+    if (autoNickAttempts >= config.features.autoNickChange.maxAttempts) {
+      console.log(`[${new Date().toLocaleTimeString()}] Достигнут лимит смены ника (${config.features.autoNickChange.maxAttempts}). Бот остановлен.`);
+      return;
+    }
+    const newNick = config.features.autoNickChange.prefix + Date.now().toString().slice(-4);
+    console.log(`[${new Date().toLocaleTimeString()}] Меняю ник с ${botName} на ${newNick} (причина: неудачные попытки)`);
+    botName = newNick;
+    autoNickAttempts++;
+    failAttempts = 0; // Сбрасываем счётчик неудач
+    setTimeout(() => createBot(), 3000);
+  }
+
+  // --- ОБРАБОТЧИК ОТКЛЮЧЕНИЙ ---
+  function handleDisconnect(event, reason) {
+    const isBan = typeof reason === 'string' && reason.toLowerCase().includes('banned');
+
+    // Если бан — меняем ник сразу
+    if (isBan && config.features.autoNickChange.enabled) {
+      changeNickAndReconnect();
+      return;
+    }
+
+    // Обычное переподключение
+    if (config.features.autoReconnect.enabled) {
+      const minDelay = config.features.autoReconnect.minDelay || 5000;
+      const maxDelay = config.features.autoReconnect.maxDelay || 120000;
+      let delay = Math.min(minDelay * Math.pow(2, reconnectAttempts), maxDelay);
+      reconnectAttempts++;
+      console.log(`[${new Date().toLocaleTimeString()}] Переподключение через ${delay/1000}с (попытка ${reconnectAttempts})`);
+      setTimeout(() => createBot(), delay);
+    }
+  }
 }
 
 // --- Запуск ---
