@@ -8,7 +8,7 @@ let failAttempts = 0;
 const MAX_FAIL_ATTEMPTS = 3;
 
 let target = null;
-let attacker = null;
+let attacking = false;
 
 function createBot() {
   const bot = mineflayer.createBot({
@@ -20,28 +20,22 @@ function createBot() {
 
   // --- Успешный вход ---
   bot.on('login', () => {
-    console.log(`[${new Date().toLocaleTimeString()}] Бот ${botName} зашёл на сервер!`);
+    console.log(`[${new Date().toLocaleTimeString()}] Бот ${botName} зашёл!`);
     reconnectAttempts = 0;
     autoNickAttempts = 0;
     failAttempts = 0;
   });
 
   bot.on('spawn', () => {
-    console.log(`[${new Date().toLocaleTimeString()}] Бот появился в мире!`);
+    console.log(`[${new Date().toLocaleTimeString()}] Бот в мире!`);
     startTasks(bot);
-    // Включаем автоматическую экипировку
-    setInterval(() => equipBestGear(bot), 30000);
-    // Включаем авто-лечение
-    setInterval(() => autoEat(bot), 5000);
   });
 
-  // --- ОСНОВНЫЕ ФУНКЦИИ ---
-
-  // 1. Движение
+  // --- ДВИЖЕНИЕ ---
   function startMovement(bot) {
     if (!config.features.movement.enabled) return;
     setInterval(() => {
-      if (!bot.entity || target) return; // Не двигаемся если есть цель
+      if (!bot.entity || target) return;
       const x = bot.entity.position.x + (Math.random() - 0.5) * config.features.movement.range;
       const z = bot.entity.position.z + (Math.random() - 0.5) * config.features.movement.range;
       bot.setControlState('forward', true);
@@ -50,7 +44,7 @@ function createBot() {
     }, config.features.movement.delay);
   }
 
-  // 2. Чат
+  // --- ЧАТ ---
   function startChat(bot) {
     if (!config.features.chat.enabled) return;
     let index = 0;
@@ -61,7 +55,7 @@ function createBot() {
     }, config.features.chat.delay);
   }
 
-  // 3. Атака мобов
+  // --- АТАКА МОБОВ ---
   function startAttack(bot) {
     if (!config.features.attackMobs.enabled) return;
     setInterval(() => {
@@ -77,7 +71,7 @@ function createBot() {
     }, 2000);
   }
 
-  // 4. Сон
+  // --- СОН ---
   function startSleep(bot) {
     if (!config.features.sleep.enabled) return;
     setInterval(() => {
@@ -87,114 +81,136 @@ function createBot() {
     }, config.features.sleep.timeout);
   }
 
-  // 5. АТАКА ЦЕЛИ (с аимботом)
+  // --- АТАКА ЦЕЛИ (ПРОСТАЯ) ---
   function attackTarget(bot) {
-    if (!target) return;
-    // Аимбот: смотрим на цель
-    bot.lookAt(target.position.offset(0, 1.6, 0));
-    bot.attack(target);
-    // Если цель мертва или далеко — сбрасываем
-    if (!target.isValid || bot.entity.position.distanceTo(target.position) > 6) {
+    if (!target || !target.isValid) {
       target = null;
+      attacking = false;
+      return;
+    }
+
+    // Останавливаем движение
+    bot.setControlState('forward', false);
+    bot.setControlState('back', false);
+    bot.setControlState('left', false);
+    bot.setControlState('right', false);
+
+    // Смотрим на цель
+    bot.lookAt(target.position.offset(0, 1.5, 0));
+    
+    // Бьём
+    bot.attack(target);
+    attacking = true;
+
+    // Если цель умерла или убежала — сбрасываем
+    if (!target.isValid || bot.entity.position.distanceTo(target.position) > 5) {
+      target = null;
+      attacking = false;
     }
   }
 
-  // 6. ОБРАБОТКА УДАРА ПО БОТУ
-  bot.on('entityHurt', (entity) => {
-    if (entity === bot.entity && entity.entity?.type !== 'mob') {
-      const damageSource = entity.entity;
-      if (damageSource && damageSource.type === 'player') {
-        console.log(`[${new Date().toLocaleTimeString()}] Меня ударил ${damageSource.username}! Отвечаю!`);
-        target = damageSource;
-        attacker = damageSource;
-        // Атакуем обидчика
-        setInterval(() => {
-          if (target && target.isValid) {
-            attackTarget(bot);
-          } else {
-            target = null;
-            attacker = null;
+  // --- КОГДА БОТА УДАРИЛИ (ПРОСТОЙ СПОСОБ) ---
+  bot.on('health', () => {
+    if (!bot.entity) return;
+    // Проверяем, есть ли кто-то рядом с мечом
+    const nearby = bot.nearestEntity(entity => 
+      entity.type === 'player' && 
+      entity !== bot.entity &&
+      bot.entity.position.distanceTo(entity.position) < 4
+    );
+    if (nearby && !target) {
+      console.log(`[${new Date().toLocaleTimeString()}] Рядом игрок ${nearby.username}, проверяю...`);
+      // Если у нас меньше здоровья, чем у него — считаем, что это он нас ударил
+      if (bot.health < 20) {
+        target = nearby;
+        console.log(`[${new Date().toLocaleTimeString()}] Атакую ${nearby.username}!`);
+        // Атакуем раз в 0.5 секунды
+        const attackInterval = setInterval(() => {
+          attackTarget(bot);
+          if (!target) {
+            clearInterval(attackInterval);
           }
-        }, 300);
+        }, 500);
       }
     }
   });
 
-  // 7. ПОДБОР ПРЕДМЕТОВ
+  // --- ПОДБОР ПРЕДМЕТОВ ---
   bot.on('itemDrop', (entity) => {
     if (!entity.item) return;
-    const itemName = entity.item.name;
     const distance = bot.entity.position.distanceTo(entity.position);
     if (distance < 5) {
-      console.log(`[${new Date().toLocaleTimeString()}] Подбираю ${itemName}`);
+      console.log(`[${new Date().toLocaleTimeString()}] Подбираю ${entity.item.name}`);
       bot.collectBlock(entity);
     }
   });
 
-  // 8. ЭКИПИРОВКА ЛУЧШЕЙ БРОНИ И ОРУЖИЯ
+  // --- ЭКИПИРОВКА ---
   function equipBestGear(bot) {
-    const inventory = bot.inventory.items();
-    // Броня
-    const armorSlots = ['head', 'chest', 'legs', 'feet'];
-    armorSlots.forEach(slot => {
-      const item = bot.inventory.findItem(item => 
-        item.name.includes('helmet') || item.name.includes('chestplate') ||
-        item.name.includes('leggings') || item.name.includes('boots')
-      );
-      if (item) {
-        const equipped = bot.inventory.slots[getSlotIndex(slot)];
-        if (!equipped || item.durability > equipped.durability) {
-          bot.equip(item, slot);
-          console.log(`[${new Date().toLocaleTimeString()}] Надел ${item.name}`);
-        }
-      }
-    });
-
-    // Оружие (лучший меч)
-    const sword = bot.inventory.findItem(item => item.name.includes('sword'));
-    if (sword) {
-      const equipped = bot.inventory.slots[0]; // Основная рука
-      if (!equipped || equipped.name !== sword.name) {
+    try {
+      const items = bot.inventory.items();
+      // Ищем меч
+      const sword = items.find(item => item.name.includes('sword'));
+      if (sword) {
         bot.equip(sword, 'hand');
         console.log(`[${new Date().toLocaleTimeString()}] Взял ${sword.name}`);
       }
+      // Ищем броню
+      const helmet = items.find(item => item.name.includes('helmet'));
+      const chest = items.find(item => item.name.includes('chestplate'));
+      const legs = items.find(item => item.name.includes('leggings'));
+      const boots = items.find(item => item.name.includes('boots'));
+      if (helmet) bot.equip(helmet, 'head');
+      if (chest) bot.equip(chest, 'torso');
+      if (legs) bot.equip(legs, 'legs');
+      if (boots) bot.equip(boots, 'feet');
+    } catch (err) {
+      console.log(`[${new Date().toLocaleTimeString()}] Ошибка экипировки: ${err.message}`);
     }
   }
 
-  // 9. АВТО-ЛЕЧЕНИЕ ЕДОЙ
+  // --- ЕДА ---
   function autoEat(bot) {
-    if (bot.health < 10) {
-      const food = bot.inventory.findItem(item => item.name.includes('apple') || item.name.includes('bread') || item.name.includes('pork'));
-      if (food) {
-        bot.equip(food, 'hand');
-        bot.consume();
-        console.log(`[${new Date().toLocaleTimeString()}] Съел ${food.name}`);
+    try {
+      if (bot.health < 12) {
+        const food = bot.inventory.findItem(item => 
+          item.name.includes('apple') || item.name.includes('bread') || 
+          item.name.includes('pork') || item.name.includes('beef') ||
+          item.name.includes('chicken')
+        );
+        if (food) {
+          bot.equip(food, 'hand');
+          bot.consume();
+          console.log(`[${new Date().toLocaleTimeString()}] Съел ${food.name}`);
+        }
       }
+    } catch (err) {
+      console.log(`[${new Date().toLocaleTimeString()}] Ошибка еды: ${err.message}`);
     }
   }
 
-  // 10. ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ (индекс слота)
-  function getSlotIndex(slot) {
-    const map = { head: 5, chest: 6, legs: 7, feet: 8 };
-    return map[slot] || 0;
-  }
-
-  // --- ЗАПУСК ВСЕХ ЗАДАЧ ---
+  // --- ЗАПУСК ---
   function startTasks(bot) {
     startMovement(bot);
     startChat(bot);
     startAttack(bot);
     startSleep(bot);
+    setInterval(() => equipBestGear(bot), 30000);
+    setInterval(() => autoEat(bot), 5000);
   }
 
-  // --- ОБРАБОТКА ОТКЛЮЧЕНИЙ И БАНА ---
+  // --- ОБРАБОТКА ОТКЛЮЧЕНИЙ ---
   bot.on('kicked', (reason) => {
     console.log(`[${new Date().toLocaleTimeString()}] Кикнут: ${reason}`);
+    target = null;
+    attacking = false;
     handleDisconnect('kicked', reason);
   });
 
   bot.on('end', (reason) => {
     console.log(`[${new Date().toLocaleTimeString()}] Отключён: ${reason}`);
+    target = null;
+    attacking = false;
     handleDisconnect('end', reason);
   });
 
@@ -202,7 +218,6 @@ function createBot() {
     console.log(`[${new Date().toLocaleTimeString()}] Ошибка: ${err.message}`);
     if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
       failAttempts++;
-      console.log(`[${new Date().toLocaleTimeString()}] Неудачная попытка (${failAttempts}/${MAX_FAIL_ATTEMPTS})`);
       if (failAttempts >= MAX_FAIL_ATTEMPTS && config.features.autoNickChange.enabled) {
         changeNickAndReconnect();
       }
@@ -237,6 +252,10 @@ function createBot() {
       setTimeout(() => createBot(), delay);
     }
   }
+}
+
+// --- ЗАПУСК ---
+createBot();
 }
 
 // --- ЗАПУСК ---
