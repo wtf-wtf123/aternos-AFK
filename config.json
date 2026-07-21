@@ -27,15 +27,13 @@
       "maxDelay": 120000
     },
     "nickChanger": {
-      "enabled": true,
+      "enabled": false,
       "interval": 120000,
       "prefix": "Player"
     }
   },
   "discord": {
     "enabled": true,
-    "token": "MTUyOTE1OTQ2MjY1MTQzMzE4Mw.G64A_g.p9B5UuNPuqFOa0x1pOMjH4D0lIF4XCswDPR5BY",
-    "channelId": "1529159349161824389",
-    "commandPrefix": "!"
+    "webhookUrl": "https://discord.com/api/webhooks/1529164450886844628/hyLJlEou3E_2BRiDxOwciJCoItPRmiinez8l4APb5jBzJ1I1czOjHKpPfOFVHBrJE6c9"
   }
 }
