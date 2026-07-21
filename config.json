@@ -13,11 +13,6 @@
       "range": 10,
       "delay": 5000
     },
-    "chat": {
-      "enabled": false,
-      "messages": ["Hello!", "I'm a friendly bot", "Minecraft is fun!"],
-      "delay": 60000
-    },
     "attackMobs": {
       "enabled": true,
       "range": 5
@@ -31,10 +26,16 @@
       "minDelay": 5000,
       "maxDelay": 120000
     },
-    "autoNickChange": {
+    "nickChanger": {
       "enabled": true,
-      "prefix": "Player",
-      "maxAttempts": 3
+      "interval": 120000,
+      "prefix": "Player"
     }
+  },
+  "discord": {
+    "enabled": true,
+    "token": "ТВОЙ_ТОКЕН_ДИСКОРД_БОТА",
+    "channelId": "ID_КАНАЛА_ДЛЯ_ЛОГОВ",
+    "commandPrefix": "!"
   }
 }
