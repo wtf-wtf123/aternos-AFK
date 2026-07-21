@@ -27,7 +27,7 @@
       "maxDelay": 120000
     },
     "nickChanger": {
-      "enabled": false,
+      "enabled": true,
       "interval": 120000,
       "prefix": "Player"
     }
