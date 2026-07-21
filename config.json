@@ -35,7 +35,7 @@
   "discord": {
     "enabled": true,
     "token": "MTUyOTE1OTQ2MjY1MTQzMzE4Mw.G64A_g.p9B5UuNPuqFOa0x1pOMjH4D0lIF4XCswDPR5BY",
-    "channelId": "ID_КАНАЛА_ДЛЯ_ЛОГОВ",
+    "channelId": "1529159349161824389",
     "commandPrefix": "!"
   }
 }
