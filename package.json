@@ -1,11 +1,13 @@
 {
-  "name": "my-bot",
-  "version": "1.0.0",
+  "name": "aternos-afk",
+  "version": "2.5.1",
+  "description": "Aternos AFK bot with Discord webhook logs and auto nick changer",
   "main": "index.js",
-  "dependencies": {
-    "mineflayer": "^4.20.0"
-  },
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.20.0",
+    "axios": "^1.6.0"
   }
 }
