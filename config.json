@@ -5,32 +5,36 @@
     "version": "1.21.8"
   },
   "bot": {
-    "name": "MyBot2026"
+    "name": "SlobosBot"
   },
-  "features": {
-    "movement": {
-      "enabled": true,
-      "range": 10,
-      "delay": 5000
+  "utils": {
+    "auto-auth": {
+      "enabled": false,
+      "password": ""
     },
-    "attackMobs": {
+    "anti-afk": {
       "enabled": true,
-      "range": 5
+      "sneak": true
     },
-    "sleep": {
-      "enabled": true,
-      "timeout": 30000
+    "chat-messages": {
+      "enabled": false,
+      "repeat": true,
+      "repeat-delay": 120,
+      "messages": []
     },
-    "autoReconnect": {
+    "auto-reconnect": {
       "enabled": true,
-      "minDelay": 5000,
+      "delay": 5000,
       "maxDelay": 120000
     },
     "nickChanger": {
       "enabled": true,
-      "interval": 120000,
+      "interval": 180000,
       "prefix": "Player"
     }
+  },
+  "movement": {
+    "enabled": true
   },
   "discord": {
     "enabled": true,
